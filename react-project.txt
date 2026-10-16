@@ -1,0 +1,5 @@
+npm create vite@latest abang-tech-ui -- --template react
+cd abang-tech-ui
+npm install lucide-react marked
+npm install -D tailwindcss postcss autoprefixer
+npx tailwindcss init -p
