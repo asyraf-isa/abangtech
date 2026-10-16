@@ -1,143 +1,120 @@
-# Panduan Deployment ke PythonAnywhere
+# Panduan Menjalankan Backend Flask di PythonAnywhere
 
-## 1. Cara Ringkas Host di PythonAnywhere
+## Langkah 1: Pasang Pakej yang Diperlukan
 
-### Langkah 1: Daftar dan Login
-
-1. Pergi ke [PythonAnywhere](https://www.pythonanywhere.com/).
-2. Daftar akaun baharu atau log masuk ke akaun sedia ada.
-
-### Langkah 2: Upload Fail
-
-1. Pergi ke tab **Files**.
-2. Upload fail `app.py` anda.
-3. Pastikan kod Python anda mempunyai konfigurasi CORS menggunakan `flask-cors`, contohnya:
-
-   ```python
-   from flask_cors import CORS
-
-   CORS(app)
-   ```
-
-### Langkah 3: Pasang Dependencies
-
-1. Buka **Bash Console**.
-2. Jalankan arahan berikut untuk memasang library yang diperlukan:
+1. Log masuk ke akaun **PythonAnywhere** anda.
+2. Pergi ke tab **Consoles** dan buka satu **Bash console**.
+3. Jalankan arahan berikut untuk memasang pakej yang diperlukan:
 
    ```bash
-   pip3 install --user flask-cors google-generativeai flask-limiter
+   pip install --user flask flask-cors flask-limiter google-generativeai
    ```
 
-### Langkah 4: Setup Web App
+4. Tunggu sehingga proses pemasangan selesai.
+
+## Langkah 2: Muat Naik Fail `app.py`
+
+1. Sediakan fail `app.py` yang mengandungi kod backend Flask multimodal anda pada komputer.
+2. Log masuk ke PythonAnywhere dan pergi ke tab **Files**.
+3. Buka direktori utama akaun anda:
+
+   ```text
+   /home/{username-pythonanywhere-awak}/
+   ```
+
+4. Klik butang **Upload a file**.
+5. Pilih fail `app.py` daripada komputer anda.
+6. Pastikan fail tersebut berjaya dimuat naik ke lokasi berikut:
+
+   ```text
+   /home/{username-pythonanywhere-awak}/app.py
+   ```
+
+7. Jika fail `app.py` sudah wujud, pastikan anda menggantikannya dengan versi terkini jika diperlukan.
+
+**Nota:** Pastikan fail `app.py` mengandungi kod backend yang diperlukan, termasuk konfigurasi Flask, CORS, rate limiting, pengesahan token dan integrasi Gemini API.
+
+## Langkah 3: Konfigurasi Fail WSGI
+
+PythonAnywhere menggunakan WSGI untuk menjalankan aplikasi Flask. Anda tidak perlu menggunakan `app.run()`.
 
 1. Pergi ke tab **Web**.
-2. Klik **Add a new web app**.
-3. Pilih **Flask**.
-4. Pilih versi Python yang sesuai dengan kod anda, contohnya Python 3.10 atau versi yang disokong.
-5. Tetapkan laluan fail aplikasi Python anda, iaitu `app.py`, jika diperlukan.
+2. Di bahagian **Code**, cari pautan **WSGI configuration file**.
 
-### Langkah 5: Konfigurasi WSGI (Penting)
+   Contoh laluan:
 
-1. Dalam tab **Web**, cari bahagian **WSGI configuration file**.
-2. Klik pautan fail tersebut untuk mengedit konfigurasi.
-3. Pastikan fail WSGI mengimport aplikasi Flask daripada fail `app.py` anda dengan betul.
+   ```text
+   /var/www/{username-pythonanywhere-awak}_pythonanywhere_com_wsgi.py
+   ```
 
-   Contoh konfigurasi:
+3. Buka fail konfigurasi tersebut dan pastikan kandungannya seperti berikut:
 
    ```python
    import sys
+   import os
 
-   path = '/home/USERNAME/mysite'
+   # Laluan ke direktori fail app.py
+   path = '/home/{username-pythonanywhere-awak}'
+
    if path not in sys.path:
-       sys.path.insert(0, path)
+       sys.path.append(path)
 
+   # Tetapkan Gemini API Key
+   os.environ["GEMINI_API_KEY"] = "MASUKKAN_GEMINI_API_KEY_ANDA_DI_SINI"
+
+   # Import aplikasi Flask
    from app import app as application
    ```
 
-   **Nota:** Gantikan `USERNAME` dengan nama pengguna PythonAnywhere anda dan sesuaikan laluan direktori jika perlu. Contoh ini menganggap objek Flask dalam `app.py` dinamakan `app`.
+4. Gantikan `MASUKKAN_GEMINI_API_KEY_ANDA_DI_SINI` dengan Gemini API Key anda.
+5. Klik **Save**.
 
-### Langkah 6: Reload Web App
+**Penting:** Jangan kongsikan fail konfigurasi atau API Key anda kepada orang lain. Untuk keselamatan yang lebih baik, gunakan mekanisme penyimpanan rahsia yang sesuai jika tersedia.
 
-1. Simpan semua perubahan.
-2. Kembali ke tab **Web**.
-3. Klik butang hijau **Reload**.
-4. Aplikasi anda boleh diakses melalui URL PythonAnywhere, contohnya:
+## Langkah 4: Reload Aplikasi Web
 
-   `https://USERNAME.pythonanywhere.com/chat`
+1. Kembali ke tab **Web**.
+2. Klik butang hijau **Reload {username-pythonanywhere-awak}.pythonanywhere.com**.
+3. Tunggu sehingga proses reload selesai.
 
-   Gantikan `USERNAME` dengan nama pengguna akaun anda.
+Pastikan tiada ralat konfigurasi sebelum meneruskan ke langkah seterusnya.
 
----
+## Langkah 5: Uji Endpoint API
 
-## 2. Perkara Penting Sebelum Deploy
-
-### API Key Gemini
-
-Gantikan placeholder berikut dalam kod Python:
-
-```python
-ISI_API_KEY_GEMINI_ANDA_DI_SINI
-```
-
-Gunakan API key sebenar yang diperoleh daripada [Google AI Studio](https://aistudio.google.com/).
-
-**Keselamatan:** Jangan dedahkan API key dalam `index.html`, kod JavaScript bahagian frontend, repositori awam atau mana-mana fail yang boleh diakses oleh pengguna. Sebaiknya simpan API key sebagai environment variable dan baca nilainya daripada backend Python.
-
-### URL API
-
-Dalam fail `index.html`, cari URL API yang menggunakan alamat contoh:
+Endpoint API backend anda ialah:
 
 ```text
-https://username.pythonanywhere.com/chat
+https://{username-pythonanywhere-awak}.pythonanywhere.com/chat
 ```
 
-Gantikan `username` dengan nama pengguna PythonAnywhere anda.
+Anda boleh mengujinya menggunakan frontend React/Vite, Postman atau cURL dengan menghantar permintaan HTTP `POST`.
 
-Pastikan URL tersebut sepadan dengan alamat sebenar backend yang telah di-deploy.
+Contoh menggunakan cURL:
 
-### SECRET_TOKEN dan TOKEN
-
-Jika anda menggunakan `SECRET_TOKEN` dalam Python dan `TOKEN` dalam JavaScript:
-
-- Pastikan kedua-dua nilai sepadan jika backend anda memerlukan token yang sama.
-- Jangan anggap token yang diletakkan dalam JavaScript sebagai rahsia kerana pengguna boleh melihatnya melalui browser.
-- Untuk perlindungan API yang lebih kukuh, gunakan pengesahan di bahagian backend, hadkan penggunaan melalui rate limiting dan simpan rahsia pada server.
-
-### Konfigurasi CORS
-
-Pastikan konfigurasi `CORS(app, ...)` hanya membenarkan origin frontend yang dibenarkan.
-
-Contoh:
-
-```python
-CORS(
-    app,
-    resources={
-        r"/*": {
-            "origins": [
-                "https://domain-frontend-anda.com"
-            ]
-        }
-    }
-)
+```bash
+curl -X POST "https://{username-pythonanywhere-awak}.pythonanywhere.com/chat" \
+  -H "Content-Type: application/json" \
+  -H "X-Custom-Token: TOKEN_ANDA" \
+  -d '{"message":"Hello Abang Tech","role":"Operator"}'
 ```
 
-Gantikan `https://domain-frontend-anda.com` dengan domain sebenar tempat anda menghoskan `index.html`.
+Gantikan `TOKEN_ANDA` dengan token yang sepadan dengan nilai `SECRET_TOKEN` dalam fail `app.py`.
 
-Jika frontend menggunakan domain tersuai, masukkan domain tersebut dengan protokol yang betul (`https://`). Elakkan menggunakan `origins="*"` untuk API yang memerlukan kawalan akses.
+Jika konfigurasi dan pengesahan berjaya, API sepatutnya memulangkan respons JSON yang mengandungi jawapan daripada model Gemini.
 
----
+## Langkah 6: Semak Ralat Jika API Tidak Berfungsi
 
-## 3. Checklist Sebelum Menguji
+Jika API memulangkan ralat HTTP 500 atau tidak memberikan respons:
 
-- [ ] Fail `app.py` telah dimuat naik.
-- [ ] Dependencies yang diperlukan telah dipasang.
-- [ ] API key Gemini telah dikonfigurasi dengan betul.
-- [ ] Fail WSGI mengimport aplikasi Flask dengan betul.
-- [ ] URL API dalam `index.html` telah dikemas kini.
-- [ ] Konfigurasi CORS membenarkan domain frontend.
-- [ ] Konfigurasi token sepadan dengan keperluan backend.
-- [ ] Web app telah di-reload.
-- [ ] Endpoint `/chat` telah diuji dari frontend.
+1. Pergi ke tab **Web** di PythonAnywhere.
+2. Cari bahagian **Log files**.
+3. Buka **Error log** untuk melihat butiran ralat.
+4. Semak perkara berikut:
+   - Fail `app.py` berada di lokasi yang betul.
+   - Semua pakej Python yang diperlukan telah dipasang.
+   - Gemini API Key adalah sah.
+   - Konfigurasi WSGI mengimport aplikasi dengan betul.
+   - Token dalam permintaan sepadan dengan token dalam backend.
+   - Akaun PythonAnywhere mempunyai akses rangkaian yang diperlukan untuk menghubungi Gemini API.
 
-**Selesai!** Selepas semua langkah di atas selesai, uji aplikasi anda dan semak log ralat pada tab **Web** jika berlaku masalah semasa deployment.
+Selepas membuat pembetulan, klik **Reload** semula dan uji endpoint API sekali lagi.
