@@ -9,7 +9,7 @@ from flask_limiter.util import get_remote_address
 app = Flask(__name__)
 
 CORS(app, resources={r"/chat": {"origins": "*"}})
-SECRET_TOKEN = "SECURITY_TOKEN_AWAK_SINI"
+SECRET_TOKEN = "{LETAK_APA_saja_DISINI}"
 
 limiter = Limiter(
     get_remote_address,
@@ -18,19 +18,30 @@ limiter = Limiter(
     storage_uri="memory://",
 )
 
+# Guna os.environ.get untuk elak NameError crash
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-model = genai.GenerativeModel('gemini-2.5-flash-lite')
+
+# Tetapan supaya jawapan pantas, tepat dan tidak meleret
+generation_config = {
+    "temperature": 0.2,
+    "max_output_tokens": 500,
+}
+model = genai.GenerativeModel('gemini-2.5-flash-lite', generation_config=generation_config)
 
 SYSTEM_PROMPT = """
 Identiti:
-Nama anda ialah "Abang Tech".
-Peranan: Penasihat Teknikal Kanan & Pakar Operasi Pintar untuk persekitaran kilang manufacturing.
+Nama: "Abang Tech" - Penasihat Teknikal Pintar Lantai Kilang.
 
-Adaptif Mengikut Peranan ({role}):
-- Operator: Jawapan ringkas, langkah demi langkah, fokus tindakan praktikal.
-- Technician: Sertakan punca teknikal dan troubleshooting detail.
-- Engineer: Sertakan analisis, data logic, formula atau calculation jika perlu.
-- Manager: Fokus impak kos, downtime, risiko, KPI dan keputusan strategik.
+Prinsip Utama (Operasi Pantas Lantai Produksi):
+1. TERUS KE POINT (NO FLUFF): Jangan guna mukadimah meleret (cth: jangan sebut "Sebagai Abang Tech...", "Terima kasih bertanya..."). Terus bagi jawapan/tindakan.
+2. RINGKAS & PADAT: Formatkan dalam beberapa poin atau langkah bernombor pendek. Mudah dibaca sepintas lalu di production floor.
+3. KESELAMATAN: Nyatakan amaran LOTO / PPE / henti mesin jika berkaitan dalam 1 baris pendek.
+
+Panduan Pantas Mengikut Peranan:
+- Operator: Langkah praktikal segera & SOP mesin.
+- Technician: Punca teknikal utama (root cause) & semakan komponen/wiring/setting.
+- Engineer: Analisis punca teknikal, semakan parameter/logik, & tindakan pembetulan.
+- Manager: Poin padat: status downtime, impak risiko/kos, & keputusan pantas.
 """
 
 @app.route('/chat', methods=['POST'])
@@ -66,12 +77,35 @@ def chat():
                 "data": image_bytes
             })
 
-        active_persona = SYSTEM_PROMPT.format(role=user_role)
-        prompt_text = user_query if user_query else "Tolong periksa dan analisa gambar peralatan/komponen teknikal ini."
-        contents.append(f"{active_persona}\n\nUser Question: {prompt_text}")
+        # ARAHAN KHAS KELAJUAN OPERASI MENGIKUT ROLE
+        role_instruction = (
+            f"\n\n[PENGGUNA: {user_role.upper()}]\n"
+            f"ARAHAN KELAJUAN: Jawab terus untuk {user_role}. SANGAT RINGKAS, PADAT, dan TERUS KE TINDAKAN."
+            f"Dilarang buat mukadimah. Terus berikan diagnosis/langkah."
+        )
+
+        prompt_text = user_query if user_query else "Tolong analisa kerosakan komponen/peralatan dalam gambar ini secara ringkas."
+        contents.append(f"{SYSTEM_PROMPT}{role_instruction}\n\nSoalan ({user_role}): {prompt_text}")
 
         response = model.generate_content(contents)
-        return jsonify({"reply": response.text})
+        
+        # Ekstrak jawapan secara selamat sekiranya finish_reason terpotong
+        reply_text = ""
+        try:
+            reply_text = response.text
+        except Exception:
+            if response.candidates and response.candidates[0].content.parts:
+                reply_text = "".join([part.text for part in response.candidates[0].content.parts if hasattr(part, 'text')])
+            else:
+                reply_text = "Maaf, jawapan tidak dapat dijana sepenuhnya. Sila cuba lagi."
+
+        return jsonify({"reply": reply_text})
 
     except Exception as e:
-        return jsonify({"reply": "Mesin server tengah panas, cuba lagi kejap lagi. - Abang Tech"}), 500
+        import traceback
+        traceback.print_exc()
+        print(f"Chat Error: {e}")
+        return jsonify({
+            "reply": "Mesin server tengah panas, cuba lagi kejap lagi. - Abang Tech",
+            "error_detail": str(e)
+        }), 500
